@@ -544,15 +544,51 @@ public final class Numbers {
     }
 
     public static void appendUuid(long lo, long hi, CharSink<?> sink) {
-        appendHexPadded(sink, (hi >> 32) & 0xFFFFFFFFL, 4);
+        // first group: 8 hex chars from hi bits 63..32
+        int w = (int) (hi >> 32);
+        sink.putAscii(hexDigits[(w >> 28) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 24) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 20) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 16) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 12) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 8) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 4) & 0xF]);
+        sink.putAscii(hexDigits[w & 0xF]);
         sink.putAscii('-');
-        appendHexPadded(sink, (hi >> 16) & 0xFFFF, 2);
+        // second group: 4 hex chars from hi bits 31..16
+        w = (int) ((hi >> 16) & 0xFFFF);
+        sink.putAscii(hexDigits[(w >> 12) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 8) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 4) & 0xF]);
+        sink.putAscii(hexDigits[w & 0xF]);
         sink.putAscii('-');
-        appendHexPadded(sink, hi & 0xFFFF, 2);
+        // third group: 4 hex chars from hi bits 15..0
+        w = (int) (hi & 0xFFFF);
+        sink.putAscii(hexDigits[(w >> 12) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 8) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 4) & 0xF]);
+        sink.putAscii(hexDigits[w & 0xF]);
         sink.putAscii('-');
-        appendHexPadded(sink, lo >> 48 & 0xFFFF, 2);
+        // fourth group: 4 hex chars from lo bits 63..48
+        w = (int) ((lo >> 48) & 0xFFFF);
+        sink.putAscii(hexDigits[(w >> 12) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 8) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 4) & 0xF]);
+        sink.putAscii(hexDigits[w & 0xF]);
         sink.putAscii('-');
-        appendHexPadded(sink, lo & 0xFFFFFFFFFFFFL, 6);
+        // fifth group: 12 hex chars from lo bits 47..0
+        sink.putAscii(hexDigits[(int) ((lo >> 44) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 40) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 36) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 32) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 28) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 24) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 20) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 16) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 12) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 8) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 4) & 0xF)]);
+        sink.putAscii(hexDigits[(int) (lo & 0xF)]);
     }
 
     public static int bswap(int value) {
