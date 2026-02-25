@@ -135,23 +135,49 @@ public final class Uuid implements Sinkable {
 
     public static long parseHi(CharSequence uuid, int lo) throws NumericException {
         assert lo >= 0;
-        long hi1;
-        long hi2;
-        long hi3;
-        hi1 = Numbers.parseHexLong(uuid, lo, lo + FIRST_DASH_POS);
-        hi2 = Numbers.parseHexLong(uuid, lo + FIRST_DASH_POS + 1, lo + SECOND_DASH_POS);
-        hi3 = Numbers.parseHexLong(uuid, lo + SECOND_DASH_POS + 1, lo + THIRD_DASH_POS);
+        // first group: 8 hex chars at lo+0..lo+7
+        long hi1 = Numbers.hexToDecimal(uuid.charAt(lo));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 1));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 2));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 3));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 4));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 5));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 6));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 7));
+        // second group: 4 hex chars at lo+9..lo+12 (dash at lo+8)
+        long hi2 = Numbers.hexToDecimal(uuid.charAt(lo + 9));
+        hi2 = (hi2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 10));
+        hi2 = (hi2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 11));
+        hi2 = (hi2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 12));
+        // third group: 4 hex chars at lo+14..lo+17 (dash at lo+13)
+        long hi3 = Numbers.hexToDecimal(uuid.charAt(lo + 14));
+        hi3 = (hi3 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 15));
+        hi3 = (hi3 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 16));
+        hi3 = (hi3 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 17));
         return (hi1 << 32) | (hi2 << 16) | hi3;
     }
 
     public static long parseHi(Utf8Sequence uuid, int lo) throws NumericException {
         assert lo >= 0;
-        long hi1;
-        long hi2;
-        long hi3;
-        hi1 = Numbers.parseHexLong(uuid, lo, lo + FIRST_DASH_POS);
-        hi2 = Numbers.parseHexLong(uuid, lo + FIRST_DASH_POS + 1, lo + SECOND_DASH_POS);
-        hi3 = Numbers.parseHexLong(uuid, lo + SECOND_DASH_POS + 1, lo + THIRD_DASH_POS);
+        // first group: 8 hex chars at lo+0..lo+7
+        long hi1 = Numbers.hexToDecimal(uuid.byteAt(lo));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 1));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 2));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 3));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 4));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 5));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 6));
+        hi1 = (hi1 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 7));
+        // second group: 4 hex chars at lo+9..lo+12 (dash at lo+8)
+        long hi2 = Numbers.hexToDecimal(uuid.byteAt(lo + 9));
+        hi2 = (hi2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 10));
+        hi2 = (hi2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 11));
+        hi2 = (hi2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 12));
+        // third group: 4 hex chars at lo+14..lo+17 (dash at lo+13)
+        long hi3 = Numbers.hexToDecimal(uuid.byteAt(lo + 14));
+        hi3 = (hi3 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 15));
+        hi3 = (hi3 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 16));
+        hi3 = (hi3 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 17));
         return (hi1 << 32) | (hi2 << 16) | hi3;
     }
 
@@ -173,19 +199,47 @@ public final class Uuid implements Sinkable {
 
     public static long parseLo(CharSequence uuid, int lo) throws NumericException {
         assert lo >= 0;
-        long lo1;
-        long lo2;
-        lo1 = Numbers.parseHexLong(uuid, lo + THIRD_DASH_POS + 1, lo + FOURTH_DASH_POS);
-        lo2 = Numbers.parseHexLong(uuid, lo + FOURTH_DASH_POS + 1, lo + UUID_LENGTH);
+        // fourth group: 4 hex chars at lo+19..lo+22 (dash at lo+18)
+        long lo1 = Numbers.hexToDecimal(uuid.charAt(lo + 19));
+        lo1 = (lo1 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 20));
+        lo1 = (lo1 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 21));
+        lo1 = (lo1 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 22));
+        // fifth group: 12 hex chars at lo+24..lo+35 (dash at lo+23)
+        long lo2 = Numbers.hexToDecimal(uuid.charAt(lo + 24));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 25));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 26));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 27));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 28));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 29));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 30));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 31));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 32));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 33));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 34));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.charAt(lo + 35));
         return (lo1 << 48) | lo2;
     }
 
     public static long parseLo(Utf8Sequence uuid, int lo) throws NumericException {
         assert lo >= 0;
-        long lo1;
-        long lo2;
-        lo1 = Numbers.parseHexLong(uuid, lo + THIRD_DASH_POS + 1, lo + FOURTH_DASH_POS);
-        lo2 = Numbers.parseHexLong(uuid, lo + FOURTH_DASH_POS + 1, lo + UUID_LENGTH);
+        // fourth group: 4 hex chars at lo+19..lo+22 (dash at lo+18)
+        long lo1 = Numbers.hexToDecimal(uuid.byteAt(lo + 19));
+        lo1 = (lo1 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 20));
+        lo1 = (lo1 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 21));
+        lo1 = (lo1 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 22));
+        // fifth group: 12 hex chars at lo+24..lo+35 (dash at lo+23)
+        long lo2 = Numbers.hexToDecimal(uuid.byteAt(lo + 24));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 25));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 26));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 27));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 28));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 29));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 30));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 31));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 32));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 33));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 34));
+        lo2 = (lo2 << 4) | Numbers.hexToDecimal(uuid.byteAt(lo + 35));
         return (lo1 << 48) | lo2;
     }
 
