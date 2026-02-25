@@ -2869,14 +2869,7 @@ public final class Numbers {
         int val = 0;
         for (; i < lim; i++) {
             char c = sequence.charAt(i);
-            if (c == '_') {
-                if (digitCounter == 0) {
-                    throw NumericException.instance().put("invalid integer format: ").put(sequence, p, lim);
-                }
-                digitCounter = 0;
-            } else if (c < '0' || c > '9') {
-                throw NumericException.instance().put("invalid character in integer: ").put(sequence, p, lim);
-            } else {
+            if (c >= '0' && c <= '9') {
                 // val * 10 + (c - '0')
                 if (val < (Integer.MIN_VALUE / 10)) {
                     throw NumericException.instance().put("integer overflow: ").put(sequence, p, lim);
@@ -2887,6 +2880,13 @@ public final class Numbers {
                 }
                 val = r;
                 digitCounter++;
+            } else if (c == '_') {
+                if (digitCounter == 0) {
+                    throw NumericException.instance().put("invalid integer format: ").put(sequence, p, lim);
+                }
+                digitCounter = 0;
+            } else {
+                throw NumericException.instance().put("invalid character in integer: ").put(sequence, p, lim);
             }
         }
 
@@ -2916,29 +2916,26 @@ public final class Numbers {
         long val = 0;
         for (; i < lim; i++) {
             int c = sequence.charAt(i);
-            switch (c | 32) {
-                case 'l':
-                    if (i == 0 || i + 1 < lim) {
-                        throw NumericException.instance().put("invalid long format: ").put(sequence, p, lim);
-                    }
-                    break;
-                case 127: // '_'
-                    if (digitCounter == 0) {
-                        throw NumericException.instance().put("invalid long format: ").put(sequence, p, lim);
-                    }
-                    digitCounter = 0;
-                    break;
-                default:
-                    if (c < '0' || c > '9') {
-                        throw NumericException.instance().put("invalid character in long: ").put(sequence, p, lim);
-                    }
-                    // val * 10 + (c - '0')
-                    long r = (val << 3) + (val << 1) - (c - '0');
-                    if (r > val) {
-                        throw NumericException.instance().put("long overflow: ").put(sequence, p, lim);
-                    }
-                    val = r;
-                    digitCounter++;
+            if (c >= '0' && c <= '9') {
+                // val * 10 + (c - '0')
+                long r = (val << 3) + (val << 1) - (c - '0');
+                if (r > val) {
+                    throw NumericException.instance().put("long overflow: ").put(sequence, p, lim);
+                }
+                val = r;
+                digitCounter++;
+            } else if (c == '_') {
+                if (digitCounter == 0) {
+                    throw NumericException.instance().put("invalid long format: ").put(sequence, p, lim);
+                }
+                digitCounter = 0;
+            } else if (c == 'l' || c == 'L') {
+                if (digitCounter == 0 || i + 1 < lim) {
+                    throw NumericException.instance().put("invalid long format: ").put(sequence, p, lim);
+                }
+                break;
+            } else {
+                throw NumericException.instance().put("invalid character in long: ").put(sequence, p, lim);
             }
         }
 
