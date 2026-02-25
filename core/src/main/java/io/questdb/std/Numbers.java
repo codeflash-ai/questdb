@@ -2643,19 +2643,38 @@ public final class Numbers {
         sink.putAscii((char) ('0' + i % 10));
     }
 
+    private static void appendHex16(CharSink<?> sink, long value) {
+        sink.putAscii(hexDigits[(int) ((value >> 60) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 56) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 52) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 48) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 44) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 40) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 36) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 32) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 28) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 24) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 20) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 16) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 12) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 8) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 4) & 0xF)]);
+        sink.putAscii(hexDigits[(int) (value & 0xF)]);
+    }
+
     private static void appendLong256Four(long a, long b, long c, long d, CharSink<?> sink) {
         appendLong256Three(b, c, d, sink);
-        appendHex(sink, a, true);
+        appendHex16(sink, a);
     }
 
     private static void appendLong256Three(long a, long b, long c, CharSink<?> sink) {
         appendLong256Two(b, c, sink);
-        appendHex(sink, a, true);
+        appendHex16(sink, a);
     }
 
     private static void appendLong256Two(long a, long b, CharSink<?> sink) {
         appendHex(sink, b, false);
-        appendHex(sink, a, true);
+        appendHex16(sink, a);
     }
 
     private static void appendLong3(CharSink<?> sink, long i) {
