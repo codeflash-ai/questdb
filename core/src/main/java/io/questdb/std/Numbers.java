@@ -916,25 +916,33 @@ public final class Numbers {
     // returns net addr + netmask in a single long value
     // throws NumericException on error
     public static long getIPv4Subnet(CharSequence sequence) throws NumericException {
-        int netmask = getIPv4Netmask(sequence);
-        if (netmask == BAD_NETMASK) {
-            throw NumericException.instance().put("invalid netmask in IPv4 subnet: ").put(sequence);
+        // find '/' once and reuse for both netmask extraction and IP parsing
+        final int slashPos = Chars.indexOf(sequence, 0, '/');
+
+        int netmask;
+        if (slashPos == -1) {
+            netmask = 0xffffffff;
+        } else {
+            try {
+                netmask = toNetMask(parseInt0(sequence, slashPos + 1, sequence.length()));
+            } catch (NumericException e) {
+                netmask = BAD_NETMASK;
+            }
+            if (netmask == BAD_NETMASK) {
+                throw NumericException.instance().put("invalid netmask in IPv4 subnet: ").put(sequence);
+            }
         }
 
-        int mid = Chars.indexOf(sequence, 0, '/');
-
         try {
-            if (mid == -1) { // no netmask
+            if (slashPos == -1) {
                 return pack(parseIPv4(sequence), netmask);
             }
-
-            int ipv4 = parseIPv4_0(sequence, 0, mid);
-            return pack(ipv4, netmask);
+            return pack(parseIPv4_0(sequence, 0, slashPos), netmask);
         } catch (NumericException e) {
-            if (mid == -1) {
+            if (slashPos == -1) {
                 throw NumericException.instance().put("invalid IPv4 subnet format, expected format: x.x.x.x/mask, got: ").put(sequence);
             }
-            return pack(parseSubnet0(sequence, 0, mid, getNetmaskLength(netmask)), netmask);
+            return pack(parseSubnet0(sequence, 0, slashPos, getNetmaskLength(netmask)), netmask);
         }
     }
 
