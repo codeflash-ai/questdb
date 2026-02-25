@@ -1232,59 +1232,60 @@ public final class Numbers {
             throw NumericException.instance().put("empty IPv4 address string");
         }
 
-        int hi;
         int lo = p;
-        int num;
-        int ipv4 = 0;
-        int count = 0;
-
-        final char sign = sequence.charAt(lo);
 
         // removes any leading dots
-        if (notDigit(sign)) {
-            if (sign == '.') {
-                do {
-                    lo++;
-                } while (sequence.charAt(lo) == '.');
+        if (sequence.charAt(lo) == '.') {
+            while (lo < lim && sequence.charAt(lo) == '.') {
+                lo++;
+            }
+            if (lo >= lim) {
+                throw NumericException.instance().put("invalid IPv4 address: ").put(sequence);
+            }
+        } else if (notDigit(sequence.charAt(lo))) {
+            throw NumericException.instance().put("invalid IPv4 address: ").put(sequence);
+        }
+
+        int ipv4 = 0;
+        int oct = 0;
+        int octetCount = 0;
+        boolean hasDigits = false;
+
+        for (int i = lo; i < lim; i++) {
+            char c = sequence.charAt(i);
+            if (c >= '0' && c <= '9') {
+                oct = oct * 10 + (c - '0');
+                if (oct > 255) {
+                    throw NumericException.instance().put("IPv4 octet out of range [0-255]: ").put(oct);
+                }
+                hasDigits = true;
+            } else if (c == '.') {
+                if (octetCount == 3) {
+                    // trailing dots are allowed - verify all remaining chars are dots
+                    for (int j = i + 1; j < lim; j++) {
+                        if (sequence.charAt(j) != '.') {
+                            throw NumericException.instance().put("invalid character in IPv4 address: ").put(sequence);
+                        }
+                    }
+                    break;
+                }
+                if (!hasDigits) {
+                    throw NumericException.instance().put("invalid IPv4 address: ").put(sequence);
+                }
+                ipv4 = (ipv4 << 8) | oct;
+                oct = 0;
+                hasDigits = false;
+                octetCount++;
             } else {
                 throw NumericException.instance().put("invalid IPv4 address: ").put(sequence);
             }
         }
 
-        while ((hi = Chars.indexOf(sequence, lo, '.')) > -1 && count < 3) {
-            num = parseInt(sequence, lo, hi);
-            if (num > 255) {
-                throw NumericException.instance().put("IPv4 octet out of range [0-255]: ").put(num);
-            }
-            ipv4 = (ipv4 << 8) | num;
-            count++;
-            lo = hi + 1;
+        if (octetCount != 3 || !hasDigits) {
+            throw NumericException.instance().put("IPv4 address must have 4 octets, found: ").put(octetCount + 1);
         }
 
-        if (count != 3) {
-            throw NumericException.instance().put("IPv4 address must have 4 octets, found: ").put(count + 1);
-        }
-
-        // removes any trailing dots
-        if ((hi = Chars.indexOf(sequence, lo, '.')) > -1) {
-            num = parseInt(sequence, lo, hi);
-            hi++;
-            while (hi < lim) {
-                if (sequence.charAt(hi) == '.') {
-                    hi++;
-                } else {
-                    throw NumericException.instance().put("invalid character in IPv4 address: ").put(sequence);
-                }
-            }
-        } else {
-            num = parseInt(sequence, lo, lim);
-        }
-
-        if (num > 255) {
-            throw NumericException.instance().put("IPv4 octet out of range [0-255]: ").put(num);
-        }
-
-        return (ipv4 << 8) | num;
+        return (ipv4 << 8) | oct;
     }
 
     public static int parseInt(Utf8Sequence sequence) throws NumericException {
