@@ -544,15 +544,51 @@ public final class Numbers {
     }
 
     public static void appendUuid(long lo, long hi, CharSink<?> sink) {
-        appendHexPadded(sink, (hi >> 32) & 0xFFFFFFFFL, 4);
+        // first group: 8 hex chars from hi bits 63..32
+        int w = (int) (hi >> 32);
+        sink.putAscii(hexDigits[(w >> 28) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 24) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 20) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 16) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 12) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 8) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 4) & 0xF]);
+        sink.putAscii(hexDigits[w & 0xF]);
         sink.putAscii('-');
-        appendHexPadded(sink, (hi >> 16) & 0xFFFF, 2);
+        // second group: 4 hex chars from hi bits 31..16
+        w = (int) ((hi >> 16) & 0xFFFF);
+        sink.putAscii(hexDigits[(w >> 12) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 8) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 4) & 0xF]);
+        sink.putAscii(hexDigits[w & 0xF]);
         sink.putAscii('-');
-        appendHexPadded(sink, hi & 0xFFFF, 2);
+        // third group: 4 hex chars from hi bits 15..0
+        w = (int) (hi & 0xFFFF);
+        sink.putAscii(hexDigits[(w >> 12) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 8) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 4) & 0xF]);
+        sink.putAscii(hexDigits[w & 0xF]);
         sink.putAscii('-');
-        appendHexPadded(sink, lo >> 48 & 0xFFFF, 2);
+        // fourth group: 4 hex chars from lo bits 63..48
+        w = (int) ((lo >> 48) & 0xFFFF);
+        sink.putAscii(hexDigits[(w >> 12) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 8) & 0xF]);
+        sink.putAscii(hexDigits[(w >> 4) & 0xF]);
+        sink.putAscii(hexDigits[w & 0xF]);
         sink.putAscii('-');
-        appendHexPadded(sink, lo & 0xFFFFFFFFFFFFL, 6);
+        // fifth group: 12 hex chars from lo bits 47..0
+        sink.putAscii(hexDigits[(int) ((lo >> 44) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 40) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 36) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 32) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 28) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 24) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 20) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 16) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 12) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 8) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((lo >> 4) & 0xF)]);
+        sink.putAscii(hexDigits[(int) (lo & 0xF)]);
     }
 
     public static int bswap(int value) {
@@ -880,25 +916,33 @@ public final class Numbers {
     // returns net addr + netmask in a single long value
     // throws NumericException on error
     public static long getIPv4Subnet(CharSequence sequence) throws NumericException {
-        int netmask = getIPv4Netmask(sequence);
-        if (netmask == BAD_NETMASK) {
-            throw NumericException.instance().put("invalid netmask in IPv4 subnet: ").put(sequence);
+        // find '/' once and reuse for both netmask extraction and IP parsing
+        final int slashPos = Chars.indexOf(sequence, 0, '/');
+
+        int netmask;
+        if (slashPos == -1) {
+            netmask = 0xffffffff;
+        } else {
+            try {
+                netmask = toNetMask(parseInt0(sequence, slashPos + 1, sequence.length()));
+            } catch (NumericException e) {
+                netmask = BAD_NETMASK;
+            }
+            if (netmask == BAD_NETMASK) {
+                throw NumericException.instance().put("invalid netmask in IPv4 subnet: ").put(sequence);
+            }
         }
 
-        int mid = Chars.indexOf(sequence, 0, '/');
-
         try {
-            if (mid == -1) { // no netmask
+            if (slashPos == -1) {
                 return pack(parseIPv4(sequence), netmask);
             }
-
-            int ipv4 = parseIPv4_0(sequence, 0, mid);
-            return pack(ipv4, netmask);
+            return pack(parseIPv4_0(sequence, 0, slashPos), netmask);
         } catch (NumericException e) {
-            if (mid == -1) {
+            if (slashPos == -1) {
                 throw NumericException.instance().put("invalid IPv4 subnet format, expected format: x.x.x.x/mask, got: ").put(sequence);
             }
-            return pack(parseSubnet0(sequence, 0, mid, getNetmaskLength(netmask)), netmask);
+            return pack(parseSubnet0(sequence, 0, slashPos, getNetmaskLength(netmask)), netmask);
         }
     }
 
@@ -1232,59 +1276,60 @@ public final class Numbers {
             throw NumericException.instance().put("empty IPv4 address string");
         }
 
-        int hi;
         int lo = p;
-        int num;
-        int ipv4 = 0;
-        int count = 0;
-
-        final char sign = sequence.charAt(lo);
 
         // removes any leading dots
-        if (notDigit(sign)) {
-            if (sign == '.') {
-                do {
-                    lo++;
-                } while (sequence.charAt(lo) == '.');
+        if (sequence.charAt(lo) == '.') {
+            while (lo < lim && sequence.charAt(lo) == '.') {
+                lo++;
+            }
+            if (lo >= lim) {
+                throw NumericException.instance().put("invalid IPv4 address: ").put(sequence);
+            }
+        } else if (notDigit(sequence.charAt(lo))) {
+            throw NumericException.instance().put("invalid IPv4 address: ").put(sequence);
+        }
+
+        int ipv4 = 0;
+        int oct = 0;
+        int octetCount = 0;
+        boolean hasDigits = false;
+
+        for (int i = lo; i < lim; i++) {
+            char c = sequence.charAt(i);
+            if (c >= '0' && c <= '9') {
+                oct = oct * 10 + (c - '0');
+                if (oct > 255) {
+                    throw NumericException.instance().put("IPv4 octet out of range [0-255]: ").put(oct);
+                }
+                hasDigits = true;
+            } else if (c == '.') {
+                if (octetCount == 3) {
+                    // trailing dots are allowed - verify all remaining chars are dots
+                    for (int j = i + 1; j < lim; j++) {
+                        if (sequence.charAt(j) != '.') {
+                            throw NumericException.instance().put("invalid character in IPv4 address: ").put(sequence);
+                        }
+                    }
+                    break;
+                }
+                if (!hasDigits) {
+                    throw NumericException.instance().put("invalid IPv4 address: ").put(sequence);
+                }
+                ipv4 = (ipv4 << 8) | oct;
+                oct = 0;
+                hasDigits = false;
+                octetCount++;
             } else {
                 throw NumericException.instance().put("invalid IPv4 address: ").put(sequence);
             }
         }
 
-        while ((hi = Chars.indexOf(sequence, lo, '.')) > -1 && count < 3) {
-            num = parseInt(sequence, lo, hi);
-            if (num > 255) {
-                throw NumericException.instance().put("IPv4 octet out of range [0-255]: ").put(num);
-            }
-            ipv4 = (ipv4 << 8) | num;
-            count++;
-            lo = hi + 1;
+        if (octetCount != 3 || !hasDigits) {
+            throw NumericException.instance().put("IPv4 address must have 4 octets, found: ").put(octetCount + 1);
         }
 
-        if (count != 3) {
-            throw NumericException.instance().put("IPv4 address must have 4 octets, found: ").put(count + 1);
-        }
-
-        // removes any trailing dots
-        if ((hi = Chars.indexOf(sequence, lo, '.')) > -1) {
-            num = parseInt(sequence, lo, hi);
-            hi++;
-            while (hi < lim) {
-                if (sequence.charAt(hi) == '.') {
-                    hi++;
-                } else {
-                    throw NumericException.instance().put("invalid character in IPv4 address: ").put(sequence);
-                }
-            }
-        } else {
-            num = parseInt(sequence, lo, lim);
-        }
-
-        if (num > 255) {
-            throw NumericException.instance().put("IPv4 octet out of range [0-255]: ").put(num);
-        }
-
-        return (ipv4 << 8) | num;
+        return (ipv4 << 8) | oct;
     }
 
     public static int parseInt(Utf8Sequence sequence) throws NumericException {
@@ -2598,19 +2643,38 @@ public final class Numbers {
         sink.putAscii((char) ('0' + i % 10));
     }
 
+    private static void appendHex16(CharSink<?> sink, long value) {
+        sink.putAscii(hexDigits[(int) ((value >> 60) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 56) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 52) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 48) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 44) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 40) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 36) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 32) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 28) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 24) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 20) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 16) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 12) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 8) & 0xF)]);
+        sink.putAscii(hexDigits[(int) ((value >> 4) & 0xF)]);
+        sink.putAscii(hexDigits[(int) (value & 0xF)]);
+    }
+
     private static void appendLong256Four(long a, long b, long c, long d, CharSink<?> sink) {
         appendLong256Three(b, c, d, sink);
-        appendHex(sink, a, true);
+        appendHex16(sink, a);
     }
 
     private static void appendLong256Three(long a, long b, long c, CharSink<?> sink) {
         appendLong256Two(b, c, sink);
-        appendHex(sink, a, true);
+        appendHex16(sink, a);
     }
 
     private static void appendLong256Two(long a, long b, CharSink<?> sink) {
         appendHex(sink, b, false);
-        appendHex(sink, a, true);
+        appendHex16(sink, a);
     }
 
     private static void appendLong3(CharSink<?> sink, long i) {
@@ -2869,14 +2933,7 @@ public final class Numbers {
         int val = 0;
         for (; i < lim; i++) {
             char c = sequence.charAt(i);
-            if (c == '_') {
-                if (digitCounter == 0) {
-                    throw NumericException.instance().put("invalid integer format: ").put(sequence, p, lim);
-                }
-                digitCounter = 0;
-            } else if (c < '0' || c > '9') {
-                throw NumericException.instance().put("invalid character in integer: ").put(sequence, p, lim);
-            } else {
+            if (c >= '0' && c <= '9') {
                 // val * 10 + (c - '0')
                 if (val < (Integer.MIN_VALUE / 10)) {
                     throw NumericException.instance().put("integer overflow: ").put(sequence, p, lim);
@@ -2887,6 +2944,13 @@ public final class Numbers {
                 }
                 val = r;
                 digitCounter++;
+            } else if (c == '_') {
+                if (digitCounter == 0) {
+                    throw NumericException.instance().put("invalid integer format: ").put(sequence, p, lim);
+                }
+                digitCounter = 0;
+            } else {
+                throw NumericException.instance().put("invalid character in integer: ").put(sequence, p, lim);
             }
         }
 
@@ -2916,29 +2980,26 @@ public final class Numbers {
         long val = 0;
         for (; i < lim; i++) {
             int c = sequence.charAt(i);
-            switch (c | 32) {
-                case 'l':
-                    if (i == 0 || i + 1 < lim) {
-                        throw NumericException.instance().put("invalid long format: ").put(sequence, p, lim);
-                    }
-                    break;
-                case 127: // '_'
-                    if (digitCounter == 0) {
-                        throw NumericException.instance().put("invalid long format: ").put(sequence, p, lim);
-                    }
-                    digitCounter = 0;
-                    break;
-                default:
-                    if (c < '0' || c > '9') {
-                        throw NumericException.instance().put("invalid character in long: ").put(sequence, p, lim);
-                    }
-                    // val * 10 + (c - '0')
-                    long r = (val << 3) + (val << 1) - (c - '0');
-                    if (r > val) {
-                        throw NumericException.instance().put("long overflow: ").put(sequence, p, lim);
-                    }
-                    val = r;
-                    digitCounter++;
+            if (c >= '0' && c <= '9') {
+                // val * 10 + (c - '0')
+                long r = (val << 3) + (val << 1) - (c - '0');
+                if (r > val) {
+                    throw NumericException.instance().put("long overflow: ").put(sequence, p, lim);
+                }
+                val = r;
+                digitCounter++;
+            } else if (c == '_') {
+                if (digitCounter == 0) {
+                    throw NumericException.instance().put("invalid long format: ").put(sequence, p, lim);
+                }
+                digitCounter = 0;
+            } else if (c == 'l' || c == 'L') {
+                if (digitCounter == 0 || i + 1 < lim) {
+                    throw NumericException.instance().put("invalid long format: ").put(sequence, p, lim);
+                }
+                break;
+            } else {
+                throw NumericException.instance().put("invalid character in long: ").put(sequence, p, lim);
             }
         }
 
