@@ -338,44 +338,72 @@ public class SqlOptimiser implements Mutable {
     }
 
     public void clear() {
+        // Skip Arrays.fill on always-empty hashmaps/hashsets: the parser.expr()
+        // code path (testParseExpression, fetch-only queries) never populates
+        // SqlOptimiser state, yet each clear() still iterates the backing
+        // array. size()>0 is a capacity-free arithmetic check on these types.
         clearForUnionModelInJoin();
         contextPool.clear();
         intHashSetPool.clear();
         joinClausesSwap1.clear();
         joinClausesSwap2.clear();
-        literalCollectorAIndexes.clear();
-        literalCollectorBIndexes.clear();
+        if (literalCollectorAIndexes.size() > 0) {
+            literalCollectorAIndexes.clear();
+        }
+        if (literalCollectorBIndexes.size() > 0) {
+            literalCollectorBIndexes.clear();
+        }
         literalCollectorANames.clear();
         literalCollectorBNames.clear();
         defaultAliasCount = 0;
         expressionNodePool.clear();
         characterStore.clear();
-        tablesSoFar.clear();
+        if (tablesSoFar.size() > 0) {
+            tablesSoFar.clear();
+        }
         clausesToSteal.clear();
-        tempCursorAliases.clear();
-        tempCursorAliasSequenceMap.clear();
+        if (tempCursorAliases.size() > 0) {
+            tempCursorAliases.clear();
+        }
+        if (tempCursorAliasSequenceMap.size() > 0) {
+            tempCursorAliasSequenceMap.clear();
+        }
         tableFactoriesInFlight.clear();
         groupByAliases.clear();
         groupByNodes.clear();
         tempColumnAlias = null;
         tempQueryModel = null;
         tempIntList.clear();
-        tempIntHashSet.clear();
+        if (tempIntHashSet.size() > 0) {
+            tempIntHashSet.clear();
+        }
         tempBoolList.clear();
         tempColumns.clear();
         tempColumns2.clear();
-        tempCharSequenceHashSet.clear();
-        pivotAliasMap.clear();
-        pivotAliasSequenceMap.clear();
+        if (tempCharSequenceHashSet.size() > 0) {
+            tempCharSequenceHashSet.clear();
+        }
+        if (pivotAliasMap.size() > 0) {
+            pivotAliasMap.clear();
+        }
+        if (pivotAliasSequenceMap.size() > 0) {
+            pivotAliasSequenceMap.clear();
+        }
         tmpStringSink.clear();
         clearWindowFunctionHashMap();
         lateralJoinRewriter.clear();
     }
 
     public void clearForUnionModelInJoin() {
-        constNameToIndex.clear();
-        constNameToNode.clear();
-        constNameToToken.clear();
+        if (constNameToIndex.size() > 0) {
+            constNameToIndex.clear();
+        }
+        if (constNameToNode.size() > 0) {
+            constNameToNode.clear();
+        }
+        if (constNameToToken.size() > 0) {
+            constNameToToken.clear();
+        }
     }
 
     public FunctionFactoryCache getFunctionFactoryCache() {
@@ -1993,9 +2021,13 @@ public class SqlOptimiser implements Mutable {
      * Clears the window function hash map and resets the column list pool.
      */
     private void clearWindowFunctionHashMap() {
-        windowFunctionHashMap.clear();
+        if (windowFunctionHashMap.size() > 0) {
+            windowFunctionHashMap.clear();
+        }
         windowColumnListPool.clear();
-        referencedAliasesSet.clear();
+        if (referencedAliasesSet.size() > 0) {
+            referencedAliasesSet.clear();
+        }
     }
 
     /**

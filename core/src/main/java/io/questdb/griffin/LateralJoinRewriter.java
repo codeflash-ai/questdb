@@ -132,13 +132,18 @@ class LateralJoinRewriter implements Mutable {
 
     @Override
     public void clear() {
+        // ObjLists self-guard on pos>0 already. ObjHashSet.clear() runs an
+        // unconditional Arrays.fill, so skip it when empty. size() is a
+        // capacity-free arithmetic check.
         correlatedPreds.clear();
         innerJoinCorrelated.clear();
         innerJoinNonCorrelated.clear();
         nonCorrelatedPreds.clear();
         hasCorrelation = false;
         outerRefId = 0;
-        sharedModels.clear();
+        if (sharedModels.size() > 0) {
+            sharedModels.clear();
+        }
     }
 
     public void rewrite(IQueryModel model) throws SqlException {
