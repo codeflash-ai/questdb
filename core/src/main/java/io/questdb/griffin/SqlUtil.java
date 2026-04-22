@@ -456,53 +456,60 @@ public class SqlUtil {
         boolean lineComment = false;
         while (lexer.hasNext()) {
             CharSequence cs = lexer.next();
+            final int csLen = cs.length();
 
             if (lineComment) {
-                if (Chars.equals(cs, '\n') || Chars.equals(cs, '\r')) {
-                    lineComment = false;
-                } else {
-                    // Check if token contains a newline (can happen with unbalanced quotes in comments)
-                    for (int i = 0, n = cs.length(); i < n; i++) {
-                        char c = cs.charAt(i);
-                        if (c == '\n' || c == '\r') {
-                            // Found newline inside token - reposition lexer to after newline
-                            int newPos = lexer.lastTokenPosition() + i + 1;
-                            // Skip \r\n sequence
-                            if (c == '\r' && i + 1 < n && cs.charAt(i + 1) == '\n') {
-                                newPos++;
-                            }
-                            lexer.backTo(newPos, null);
-                            lineComment = false;
-                            break;
+                if (csLen == 1) {
+                    final char c0 = cs.charAt(0);
+                    if (c0 == '\n' || c0 == '\r') {
+                        lineComment = false;
+                        continue;
+                    }
+                }
+                // Check if token contains a newline (can happen with unbalanced quotes in comments)
+                for (int i = 0; i < csLen; i++) {
+                    char c = cs.charAt(i);
+                    if (c == '\n' || c == '\r') {
+                        // Found newline inside token - reposition lexer to after newline
+                        int newPos = lexer.lastTokenPosition() + i + 1;
+                        // Skip \r\n sequence
+                        if (c == '\r' && i + 1 < csLen && cs.charAt(i + 1) == '\n') {
+                            newPos++;
                         }
+                        lexer.backTo(newPos, null);
+                        lineComment = false;
+                        break;
                     }
                 }
                 continue;
             }
 
-            if (Chars.equals("--", cs)) {
-                lineComment = true;
-                continue;
-            }
-
-            if (Chars.equals("/*", cs)) {
+            // Dispatch on token length: "--", "/*", "*/" are length 2; "/*+" is length 3.
+            // All other lengths short-circuit the comment-marker checks entirely.
+            if (csLen == 2) {
+                final char c0 = cs.charAt(0);
+                final char c1 = cs.charAt(1);
+                if (c0 == '-' && c1 == '-') {
+                    lineComment = true;
+                    continue;
+                }
+                if (c0 == '/' && c1 == '*') {
+                    blockCount++;
+                    continue;
+                }
+                if (c0 == '*' && c1 == '/' && blockCount > 0) {
+                    blockCount--;
+                    continue;
+                }
+            } else if (csLen == 3 && (!includeHints || blockCount > 0)
+                    && cs.charAt(0) == '/' && cs.charAt(1) == '*' && cs.charAt(2) == '+') {
                 blockCount++;
-                continue;
-            }
-
-            if (Chars.equals("/*+", cs) && (!includeHints || blockCount > 0)) {
-                blockCount++;
-                continue;
-            }
-
-            if (Chars.equals("*/", cs) && blockCount > 0) {
-                blockCount--;
                 continue;
             }
 
             if (blockCount == 0 && GenericLexer.WHITESPACE.excludes(cs)) {
                 // unclosed quote check
-                if (cs.length() == 1 && cs.charAt(0) == '"') {
+                if (csLen == 1 && cs.charAt(0) == '"') {
                     throw SqlException.$(lexer.lastTokenPosition(), "unclosed quotation mark");
                 }
                 return cs;
@@ -539,58 +546,64 @@ public class SqlUtil {
         boolean inError = false;
         while (lexer.hasNext()) {
             CharSequence cs = lexer.next();
+            final int csLen = cs.length();
 
             if (lineComment) {
-                if (Chars.equals(cs, '\n') || Chars.equals(cs, '\r')) {
-                    lineComment = false;
-                } else {
-                    // Check if token contains a newline (can happen with unbalanced quotes in comments)
-                    for (int i = 0, n = cs.length(); i < n; i++) {
-                        char c = cs.charAt(i);
-                        if (c == '\n' || c == '\r') {
-                            // Found newline inside token - reposition lexer to after newline
-                            int newPos = lexer.lastTokenPosition() + i + 1;
-                            // Skip \r\n sequence
-                            if (c == '\r' && i + 1 < n && cs.charAt(i + 1) == '\n') {
-                                newPos++;
-                            }
-                            lexer.backTo(newPos, null);
-                            lineComment = false;
-                            break;
+                if (csLen == 1) {
+                    final char c0 = cs.charAt(0);
+                    if (c0 == '\n' || c0 == '\r') {
+                        lineComment = false;
+                        continue;
+                    }
+                }
+                // Check if token contains a newline (can happen with unbalanced quotes in comments)
+                for (int i = 0; i < csLen; i++) {
+                    char c = cs.charAt(i);
+                    if (c == '\n' || c == '\r') {
+                        // Found newline inside token - reposition lexer to after newline
+                        int newPos = lexer.lastTokenPosition() + i + 1;
+                        // Skip \r\n sequence
+                        if (c == '\r' && i + 1 < csLen && cs.charAt(i + 1) == '\n') {
+                            newPos++;
                         }
+                        lexer.backTo(newPos, null);
+                        lineComment = false;
+                        break;
                     }
                 }
                 continue;
             }
 
-            if (Chars.equals("--", cs)) {
-                lineComment = true;
-                continue;
-            }
-
-            if (Chars.equals("/*", cs)) {
-                blockCount++;
-                continue;
-            }
-
-            if (Chars.equals("/*+", cs)) {
+            // Dispatch on token length: "--", "/*", "*/" are length 2; "/*+" is length 3.
+            // All other lengths short-circuit the comment-marker checks entirely.
+            if (csLen == 2) {
+                final char c0 = cs.charAt(0);
+                final char c1 = cs.charAt(1);
+                if (c0 == '-' && c1 == '-') {
+                    lineComment = true;
+                    continue;
+                }
+                if (c0 == '/' && c1 == '*') {
+                    blockCount++;
+                    continue;
+                }
+                // end of hints or a nested comment
+                if (c0 == '*' && c1 == '/') {
+                    if (blockCount > 0) {
+                        blockCount--;
+                        continue;
+                    }
+                    return null;
+                }
+            } else if (csLen == 3 && cs.charAt(0) == '/' && cs.charAt(1) == '*' && cs.charAt(2) == '+') {
                 // nested hints are treated as regular comments
                 blockCount++;
                 continue;
             }
 
-            // end of hints or a nested comment
-            if (Chars.equals("*/", cs)) {
-                if (blockCount > 0) {
-                    blockCount--;
-                    continue;
-                }
-                return null;
-            }
-
             if (!inError && blockCount == 0 && GenericLexer.WHITESPACE.excludes(cs)) {
                 // unclosed quote check
-                if (cs.length() == 1 && cs.charAt(0) == '"') {
+                if (csLen == 1 && cs.charAt(0) == '"') {
                     inError = true;
                 } else {
                     return cs;
