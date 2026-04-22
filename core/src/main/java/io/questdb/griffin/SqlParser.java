@@ -5201,15 +5201,29 @@ public class SqlParser {
         pivotQueryColumnPool.clear();
         expressionTreeBuilder.reset();
         copyModelPool.clear();
-        topLevelWithModel.clear();
+        // Skip Arrays.fill on always-empty hashmaps: these are populated only by
+        // parseColumn (aliasMap), parsePivot (pivotAliasMap, aliasSequenceMap,
+        // tempCharSequenceSet) or parseWithClauses (topLevelWithModel). For many
+        // parse invocations they remain empty; size()>0 is a capacity-free check.
+        if (topLevelWithModel.size() > 0) {
+            topLevelWithModel.clear();
+        }
         explainModelPool.clear();
         viewLexers.clear();
         digit = 1;
         traversalAlgo.clear();
-        tempCharSequenceSet.clear();
-        aliasMap.clear();
-        aliasSequenceMap.clear();
-        pivotAliasMap.clear();
+        if (tempCharSequenceSet.size() > 0) {
+            tempCharSequenceSet.clear();
+        }
+        if (aliasMap.size() > 0) {
+            aliasMap.clear();
+        }
+        if (aliasSequenceMap.size() > 0) {
+            aliasSequenceMap.clear();
+        }
+        if (pivotAliasMap.size() > 0) {
+            pivotAliasMap.clear();
+        }
         clearRecordedViews();
     }
 
